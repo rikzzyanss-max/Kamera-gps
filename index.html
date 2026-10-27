@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kamera GPS</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#f4f5f7;--fg:#14181f;--card:#fff;--ac:#0f766e;--mu:#667085;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--fg:#eef1f5;--card:#181d25;--ac:#2dd4bf;--mu:#9aa4b2}}
@@ -40,7 +43,7 @@ button.shot{width:72px;height:72px;border-radius:50%;background:var(--ac);color:
 <button class="shot" id="shot">●</button>
 <button id="clear">🗑️</button>
 </div>
-<p class="hint">Tekan lama pada foto untuk menyimpan ke galeri.</p>
+<p class="hint"><label><input type="checkbox" id="auto" checked> Simpan otomatis setelah foto</label></p>
 <div class="grid" id="list"></div>
 </main>
 <script>
@@ -97,6 +100,7 @@ x.fillStyle='rgba(0,0,0,0.6)';x.fillRect(0,h-bh,w,bh);
 x.fillStyle='#fff';x.font=fs+'px sans-serif';x.textBaseline='top';
 lines.forEach(function(l,i){x.fillText(l,pad,h-bh+pad+i*fs*1.3)});
 var url=cv.toDataURL('image/jpeg',0.9);
+if(document.getElementById('auto').checked){cv.toBlob(function(b){var u=URL.createObjectURL(b),a=document.createElement('a'),n=new Date(),p=function(k){return String(k).padStart(2,'0')};a.href=u;a.download='GPS_'+n.getFullYear()+p(n.getMonth()+1)+p(n.getDate())+'_'+p(n.getHours())+p(n.getMinutes())+p(n.getSeconds())+'.jpg';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},5000)},'image/jpeg',0.9)}
 var d=document.createElement('div');d.className='item';
 var maps=pos?'https://www.google.com/maps?q='+pos.coords.latitude+','+pos.coords.longitude:null;
 d.innerHTML='<img alt="Foto"><small>'+lines.join(' · ')+'</small><div class="acts">'+(maps?'<a href="'+maps+'" target="_blank" rel="noopener">Buka di peta</a>':'')+'</div>';
@@ -104,6 +108,7 @@ d.querySelector('img').src=url;
 list.insertBefore(d,list.firstChild);
 };
 startGps();startCam();
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
 })();
 </script>
 </body>
