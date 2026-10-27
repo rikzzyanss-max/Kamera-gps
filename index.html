@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kamera GPS</title>
+<style>
+:root{--bg:#f4f5f7;--fg:#14181f;--card:#fff;--ac:#0f766e;--mu:#667085;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1116;--fg:#eef1f5;--card:#181d25;--ac:#2dd4bf;--mu:#9aa4b2}}
+:root[data-theme="dark"]{--bg:#0e1116;--fg:#eef1f5;--card:#181d25;--ac:#2dd4bf;--mu:#9aa4b2}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0 10px}
+.cam{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:3/4}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.hud{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:#fff;font-size:13px;line-height:1.4}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;padding:20px;font-size:14px}
+.row{display:flex;gap:10px;margin:12px 0;align-items:center;justify-content:center}
+button{border:0;border-radius:12px;padding:12px 16px;font-size:15px;background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+button.shot{width:72px;height:72px;border-radius:50%;background:var(--ac);color:#fff;font-size:26px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+.item{background:var(--card);border-radius:14px;padding:8px}
+.item img{width:100%;border-radius:10px;display:block}
+.item small{display:block;color:var(--mu);margin:6px 2px 2px}
+.item .acts{display:flex;gap:8px;margin-top:6px}
+.item a{color:var(--ac);font-size:14px}
+.hint{color:var(--mu);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<main>
+<h1>📍 Kamera GPS</h1>
+<div class="cam">
+<video id="v" autoplay playsinline muted></video>
+<div class="msg" id="msg">Mengaktifkan kamera…</div>
+<div class="hud" id="hud">Mencari sinyal GPS…</div>
+</div>
+<div class="row">
+<button id="flip">🔄</button>
+<button class="shot" id="shot">●</button>
+<button id="clear">🗑️</button>
+</div>
+<p class="hint">Tekan lama pada foto untuk menyimpan ke galeri.</p>
+<div class="grid" id="list"></div>
+</main>
+<script>
+(function(){
+var v=document.getElementById('v'),msg=document.getElementById('msg'),hud=document.getElementById('hud'),list=document.getElementById('list');
+var stream=null,facing='environment',pos=null;
+function fmt(n){return n.toFixed(6)}
+function updHud(){
+if(!pos){return}
+var c=pos.coords;
+hud.innerHTML='Lat '+fmt(c.latitude)+' · Lon '+fmt(c.longitude)+'<br>Akurasi ±'+Math.round(c.accuracy)+' m'+(c.altitude!=null?' · Alt '+Math.round(c.altitude)+' m':'')+'<br>'+new Date().toLocaleString('id-ID');
+}
+function startGps(){
+if(!navigator.geolocation){hud.textContent='GPS tidak didukung perangkat ini.';return}
+navigator.geolocation.watchPosition(function(p){pos=p;updHud()},function(e){hud.textContent='GPS tidak aktif: izinkan akses lokasi.'},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});
+setInterval(updHud,1000);
+}
+async function startCam(){
+try{
+if(stream){stream.getTracks().forEach(function(t){t.stop()})}
+stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:1706}},audio:false});
+v.srcObject=stream;msg.style.display='none';
+}catch(e){
+msg.style.display='flex';
+msg.textContent='Kamera tidak bisa diakses. Izinkan akses kamera, atau buka tautan ini langsung di browser.';
+}
+}
+document.getElementById('flip').onclick=function(){facing=facing==='environment'?'user':'environment';startCam()};
+document.getElementById('clear').onclick=function(){list.innerHTML=''};
+document.getElementById('shot').onclick=function(){
+if(!v.videoWidth){return}
+var w=v.videoWidth,h=v.videoHeight,cv=document.createElement('canvas');
+cv.width=w;cv.height=h;
+var x=cv.getContext('2d');
+x.drawImage(v,0,0,w,h);
+var t=new Date().toLocaleString('id-ID');
+var lines=pos?['Lat '+fmt(pos.coords.latitude)+'  Lon '+fmt(pos.coords.longitude),'Akurasi ±'+Math.round(pos.coords.accuracy)+' m',t]:['GPS belum tersedia',t];
+var fs=Math.round(w*0.035),pad=fs*0.6,bh=lines.length*fs*1.3+pad*2;
+x.fillStyle='rgba(0,0,0,0.6)';x.fillRect(0,h-bh,w,bh);
+x.fillStyle='#fff';x.font=fs+'px sans-serif';x.textBaseline='top';
+lines.forEach(function(l,i){x.fillText(l,pad,h-bh+pad+i*fs*1.3)});
+var url=cv.toDataURL('image/jpeg',0.9);
+var d=document.createElement('div');d.className='item';
+var maps=pos?'https://www.google.com/maps?q='+pos.coords.latitude+','+pos.coords.longitude:null;
+d.innerHTML='<img alt="Foto"><small>'+lines.join(' · ')+'</small><div class="acts">'+(maps?'<a href="'+maps+'" target="_blank" rel="noopener">Buka di peta</a>':'')+'</div>';
+d.querySelector('img').src=url;
+list.insertBefore(d,list.firstChild);
+};
+startGps();startCam();
+})();
+</script>
+</body>
+</html>
